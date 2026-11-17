@@ -1,0 +1,1 @@
+"""SimilarMusic web application package."""

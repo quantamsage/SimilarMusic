@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+  <h1>{{ app_name }}</h1>
+  <p class="tagline">Paste a link to a song you love and find other songs with a similar sound, mood and style.</p>
+
+  <form class="search-form" id="song-form" autocomplete="off">
+    <label for="song-url" class="visually-hidden">Song URL</label>
+    <input
+      id="song-url"
+      name="url"
+      type="url"
+      placeholder="https://open.spotify.com/track/… or https://youtu.be/…"
+      required
+      disabled
+    >
+    <button type="submit" disabled>Find similar songs</button>
+  </form>
+  <p class="notice" role="status">Song link processing isn't available yet.</p>
+</section>
+
+<section class="how-it-works">
+  <h2>How it works</h2>
+  <ol class="steps">
+    <li>
+      <h3>Paste a link</h3>
+      <p>Copy a song link from Spotify or YouTube and paste it above.</p>
+    </li>
+    <li>
+      <h3>We analyse the song</h3>
+      <p>We look up the song's details, such as genre, mood, tempo and artist, using official music services.</p>
+    </li>
+    <li>
+      <h3>Get recommendations</h3>
+      <p>We pick similar songs, rank them and explain why each one might appeal to you.</p>
+    </li>
+    <li>
+      <h3>Keep exploring</h3>
+      <p>Open a song on its platform, or use any recommendation as the starting point for a new search.</p>
+    </li>
+  </ol>
+</section>
+{% endblock %}

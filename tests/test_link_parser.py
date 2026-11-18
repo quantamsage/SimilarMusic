@@ -1,6 +1,6 @@
 import pytest
 
-from app.services.errors import InvalidSongUrlError, UnsupportedPlatformError
+from app.errors import InvalidSongUrlError, UnsupportedPlatformError
 from app.services.link_parser import ParsedSongLink, Platform, parse_song_url
 
 SPOTIFY_ID = "4uLU6hMCjMI75M1A2tKUQC"

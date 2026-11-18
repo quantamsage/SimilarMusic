@@ -30,3 +30,8 @@ def db_session() -> Iterator[Session]:
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture
+def anyio_backend() -> str:
+    return "asyncio"

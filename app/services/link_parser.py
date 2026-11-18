@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from urllib.parse import parse_qs, urlsplit
 
-from app.services.errors import InvalidSongUrlError, UnsupportedPlatformError
+from app.errors import InvalidSongUrlError, UnsupportedPlatformError
 
 MAX_URL_LENGTH = 2048
 

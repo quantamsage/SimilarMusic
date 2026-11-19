@@ -1,4 +1,4 @@
-"""Errors raised while turning a song link into song metadata.
+"""Errors raised while identifying songs and finding recommendations.
 
 Each error carries a user-facing message and the HTTP status the API should return.
 """
@@ -45,3 +45,8 @@ class RateLimitedError(SongLookupError):
     def __init__(self, message: str, retry_after: int | None = None) -> None:
         super().__init__(message)
         self.retry_after = retry_after
+
+
+class NoCandidatesError(SongLookupError):
+    status_code = 404
+    code = "no_recommendations"

@@ -11,9 +11,10 @@ from fastapi.staticfiles import StaticFiles
 from app.config import BASE_DIR, get_settings
 from app.database import init_db
 from app.errors import RateLimitedError, SongLookupError
+from app.integrations.lastfm import LastFmClient
 from app.integrations.spotify import SpotifyClient
 from app.integrations.youtube import YouTubeClient
-from app.routers import pages, songs
+from app.routers import discovery, pages, songs
 
 
 @asynccontextmanager
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             SpotifyClient(http, settings.spotify_client_id, settings.spotify_client_secret, settings.spotify_market),
             YouTubeClient(http, settings.youtube_api_key),
         ]
+        app.state.lastfm = LastFmClient(http, settings.lastfm_api_key)
         yield
 
 
@@ -46,6 +48,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(SongLookupError, handle_lookup_error)
     app.include_router(pages.router)
     app.include_router(songs.router)
+    app.include_router(discovery.router)
     return app
 
 

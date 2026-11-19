@@ -4,6 +4,8 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.integrations.lastfm import LastFmClient
+from app.services.music_discovery import MusicDiscoveryService
 from app.services.music_metadata import MetadataProvider, MusicMetadataService
 
 
@@ -17,3 +19,11 @@ def get_metadata_service(
     db: Session = Depends(get_db),
 ) -> MusicMetadataService:
     return MusicMetadataService(providers, db)
+
+
+def get_lastfm(request: Request) -> LastFmClient:
+    return request.app.state.lastfm
+
+
+def get_discovery_service(lastfm: LastFmClient = Depends(get_lastfm)) -> MusicDiscoveryService:
+    return MusicDiscoveryService(lastfm)

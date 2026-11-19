@@ -39,6 +39,11 @@ class MusicMetadataService:
         self._store(song, link)
         return song
 
+    def stored(self, url: str) -> Song | None:
+        """The database row for a link that has been looked up."""
+        link = parse_song_url(url)
+        return self._find(link.platform, link.external_id)
+
     def _find(self, platform: Platform, external_id: str) -> Song | None:
         return self._db.scalars(
             select(Song).where(Song.platform == platform.value, Song.external_id == external_id)

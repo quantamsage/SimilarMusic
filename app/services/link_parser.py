@@ -31,6 +31,8 @@ YOUTUBE_PATH_PREFIXES = ("shorts", "embed", "live", "v")
 class Platform(str, Enum):
     SPOTIFY = "spotify"
     YOUTUBE = "youtube"
+    #: Recommended songs, identified through Last.fm (not parsed from links).
+    LASTFM = "lastfm"
 
 
 @dataclass(frozen=True)

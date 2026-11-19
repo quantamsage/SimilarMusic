@@ -1,7 +1,7 @@
 import pytest
 
 from app.schemas.discovery import Candidate, DiscoveryResult, Seed, Tag
-from app.schemas.recommendation import ScoreBreakdown, SongAnalysis
+from app.schemas.recommendation import ScoreBreakdown
 from app.services.recommendation_engine import (
     RecommendationEngine,
     ai_score,
@@ -182,7 +182,7 @@ async def test_engine_ranks_with_ai_and_falls_back_for_missing_evaluations() -> 
 
     ai = FakeAI(respond)
     engine = RecommendationEngine(ai)
-    evaluations = await engine.evaluate(spotify_song(), SongAnalysis(), discovery)
+    evaluations = await engine.evaluate(spotify_song(), discovery)
     ranked = engine.rank(discovery, evaluations, limit=10)
 
     titles = [r.candidate.title for r in ranked]

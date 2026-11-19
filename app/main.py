@@ -14,7 +14,8 @@ from app.errors import RateLimitedError, SongLookupError
 from app.integrations.lastfm import LastFmClient
 from app.integrations.spotify import SpotifyClient
 from app.integrations.youtube import YouTubeClient
-from app.routers import discovery, pages, songs
+from app.routers import discovery, pages, recommendations, songs
+from app.services.ai_service import ClaudeProvider
 
 
 @asynccontextmanager
@@ -27,6 +28,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             YouTubeClient(http, settings.youtube_api_key),
         ]
         app.state.lastfm = LastFmClient(http, settings.lastfm_api_key)
+        app.state.ai = (
+            ClaudeProvider(
+                settings.anthropic_api_key,
+                model=settings.ai_model,
+                effort=settings.ai_effort,
+                timeout_seconds=settings.ai_timeout_seconds,
+            )
+            if settings.anthropic_api_key
+            else None
+        )
         yield
 
 
@@ -49,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(pages.router)
     app.include_router(songs.router)
     app.include_router(discovery.router)
+    app.include_router(recommendations.router)
     return app
 
 

@@ -50,3 +50,15 @@ class RateLimitedError(SongLookupError):
 class NoCandidatesError(SongLookupError):
     status_code = 404
     code = "no_recommendations"
+
+
+class AINotConfiguredError(SongLookupError):
+    status_code = 503
+    code = "ai_not_configured"
+
+
+class AIServiceError(SongLookupError):
+    """The AI service failed or returned something unusable."""
+
+    status_code = 502
+    code = "ai_failed"

@@ -3,6 +3,8 @@
 from functools import lru_cache
 from pathlib import Path
 
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -29,6 +31,16 @@ class Settings(BaseSettings):
 
     # Last.fm API (similar tracks, similar artists and tags).
     lastfm_api_key: str | None = None
+
+    # AI ranking and explanations (Claude API).
+    anthropic_api_key: str | None = None
+    ai_model: str = "claude-opus-5-5"
+    ai_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    ai_timeout_seconds: float = Field(default=120.0, gt=0, le=600)
+
+    # Recommendations.
+    recommendation_count: int = Field(default=10, ge=1, le=25)
+    recommendation_cache_hours: float = Field(default=24.0, ge=0)
 
 
 @lru_cache

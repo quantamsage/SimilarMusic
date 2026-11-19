@@ -82,7 +82,7 @@ async def test_uses_primary_artist_and_clean_title() -> None:
 
 async def test_falls_back_to_search_when_track_is_unknown() -> None:
     fm = m83_world()
-    song = spotify_song().model_copy(update={"title": "Midnite City (Official Video)", "artist": "m83"})
+    song = spotify_song().model_copy(update={"title": "Midnite City (Official Video)", "artist": "m83", "attributes": {}})
     fm.search[("m83", "midnite city official video")] = track("Midnight City", "M83")
     result = await MusicDiscoveryService(fm).discover(song)
     assert ("search_track", "m83", "Midnite City (Official Video)") in fm.calls
@@ -94,7 +94,7 @@ async def test_unknown_song_with_tags_still_finds_tag_candidates() -> None:
     fm = FakeLastFm()
     fm.artist_tag_map["new band"] = tags(("indie folk", 100))
     fm.tag_tracks["indie folk"] = [track("Holocene", "Bon Iver")]
-    song = spotify_song().model_copy(update={"title": "Brand New Song", "artist": "New Band"})
+    song = spotify_song().model_copy(update={"title": "Brand New Song", "artist": "New Band", "attributes": {}})
     result = await MusicDiscoveryService(fm).discover(song)
     assert result.seed.found_on_lastfm, "known through its artist's tags"
     assert keys(result) == [("Bon Iver", "Holocene")]

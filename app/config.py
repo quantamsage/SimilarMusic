@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # YouTube Data API v3.
     youtube_api_key: str | None = None
 
+    # Last.fm API (similar tracks, similar artists and tags).
+    lastfm_api_key: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:

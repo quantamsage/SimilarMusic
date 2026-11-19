@@ -3,7 +3,7 @@ import os
 # Set before the app is imported: use an in-memory database and blank out API
 # credentials (env vars take priority over .env) so tests never call real services.
 os.environ["DATABASE_URL"] = "sqlite://"
-for credential in ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET", "YOUTUBE_API_KEY"):
+for credential in ("SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET", "YOUTUBE_API_KEY", "LASTFM_API_KEY"):
     os.environ[credential] = ""
 
 from collections.abc import Iterator

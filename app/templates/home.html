@@ -5,19 +5,7 @@
   <h1>{{ app_name }}</h1>
   <p class="tagline">Paste a link to a song you love and find other songs with a similar sound, mood and style.</p>
 
-  <form class="search-form" id="song-form" autocomplete="off">
-    <label for="song-url" class="visually-hidden">Song URL</label>
-    <input
-      id="song-url"
-      name="url"
-      type="url"
-      placeholder="https://open.spotify.com/track/… or https://youtu.be/…"
-      required
-      disabled
-    >
-    <button type="submit" disabled>Find similar songs</button>
-  </form>
-  <p class="notice" role="status">Song link processing isn't available yet.</p>
+  {% include "_search_form.html" %}
 </section>
 
 <section class="how-it-works">
@@ -29,16 +17,17 @@
     </li>
     <li>
       <h3>We analyse the song</h3>
-      <p>We look up the song's details, such as genre, mood, tempo and artist, using official music services.</p>
+      <p>We look up the song's details, such as genre, mood and artist, using official music services.</p>
     </li>
     <li>
       <h3>Get recommendations</h3>
-      <p>We pick similar songs, rank them and explain why each one might appeal to you.</p>
+      <p>We find songs listeners connect with it, rank them and explain why each one might appeal to you.</p>
     </li>
     <li>
       <h3>Keep exploring</h3>
       <p>Open a song on its platform, or use any recommendation as the starting point for a new search.</p>
     </li>
   </ol>
+  <p class="examples">Supported links look like <code>https://open.spotify.com/track/…</code>, <code>https://www.youtube.com/watch?v=…</code> or <code>https://youtu.be/…</code>.</p>
 </section>
 {% endblock %}

@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% set song = result.song %}
+{% block title %}Songs like {{ song.title }} · {{ app_name }}{% endblock %}
+
+{% block header_actions %}
+<a class="header-link" href="/#song-form">Search another song</a>
+{% endblock %}
+
+{% macro artwork(url, title, size) -%}
+  {%- if url -%}
+    <img class="artwork artwork-{{ size }}" src="{{ url }}" alt="Artwork for {{ title }}" loading="lazy" referrerpolicy="no-referrer" width="{{ 160 if size == 'large' else 96 }}" height="{{ 160 if size == 'large' else 96 }}">
+  {%- else -%}
+    <div class="artwork artwork-{{ size }} artwork-placeholder" aria-hidden="true">{{ title[:1] | upper }}</div>
+  {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+<section class="original" aria-labelledby="original-heading">
+  <p class="eyebrow">Your song</p>
+  <div class="original-card">
+    {{ artwork(song.artwork_url, song.title, 'large') }}
+    <div class="original-body">
+      <h1 id="original-heading" class="song-title">{{ song.title }}</h1>
+      <p class="song-artist">{{ song.artist }}</p>
+      {% if song.album %}<p class="song-album">{{ song.album }}</p>{% endif %}
+      <p class="song-actions">
+        <a class="button button-secondary" href="{{ song.url }}" target="_blank" rel="noopener noreferrer">
+          Open on {{ platform_names.get(song.platform.value, song.platform.value) }}<span class="visually-hidden"> (opens in a new tab)</span> ↗
+        </a>
+      </p>
+      {% if result.analysis.characteristics %}
+      <dl class="traits" aria-label="What the song is like">
+        {% for name, trait in result.analysis.characteristics.items() %}
+        <div class="trait" {% if trait.evidence %}title="Based on: {{ trait.evidence | join('; ') }}"{% endif %}>
+          <dt>{{ labels.get(name, name) }}</dt>
+          <dd>{{ trait.value }}</dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="results" aria-labelledby="results-heading">
+  <div class="results-header">
+    <h2 id="results-heading">{{ result.recommendations | length }} similar {{ 'song' if result.recommendations | length == 1 else 'songs' }}</h2>
+    {% if result.cached %}
+    <p class="muted small">Found on <time datetime="{{ result.created_at.isoformat() }}">{{ result.created_at.strftime('%d %b %Y') }}</time></p>
+    {% endif %}
+  </div>
+  <div class="form-error" id="form-error" role="alert" hidden>
+    <p class="form-error-message" data-error-message></p>
+    <p class="form-error-hint" data-error-hint hidden></p>
+  </div>
+
+  <ol class="recommendations">
+    {% for rec in result.recommendations %}
+    {% set percent = (rec.similarity_score * 100) | round | int %}
+    <li class="rec">
+      <span class="rec-rank" aria-label="Rank {{ rec.rank }}">{{ rec.rank }}</span>
+      {{ artwork(rec.artwork_url, rec.title, 'small') }}
+      <div class="rec-body">
+        <h3 class="rec-title">{{ rec.title }}</h3>
+        <p class="rec-artist">{{ rec.artist }}{% if rec.album %} · <span class="muted">{{ rec.album }}</span>{% endif %}</p>
+        <div class="score">
+          <meter min="0" max="1" low="0.4" high="0.7" optimum="1" value="{{ rec.similarity_score }}" aria-label="Similarity">{{ percent }}%</meter>
+          <span class="score-value">{{ percent }}% similar</span>
+        </div>
+        <p class="rec-explanation">{{ rec.explanation }}</p>
+        <p class="rec-source muted small">
+          {% if rec.explanation_source == 'ai' %}Explanation written by AI from the songs' data.{% else %}Explanation based on listening data.{% endif %}
+        </p>
+        {% if rec.tags %}
+        <ul class="tags" aria-label="Tags">
+          {% for tag in rec.tags[:4] %}<li>{{ tag.name }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        <div class="rec-actions">
+          {% if rec.listen_url %}
+          <a class="button button-secondary" href="{{ rec.listen_url }}" target="_blank" rel="noopener noreferrer">
+            Listen on {{ platform_names.get(rec.listen_platform, rec.listen_platform) }}<span class="visually-hidden"> (opens in a new tab)</span> ↗
+          </a>
+          {% endif %}
+          {% if rec.song_id %}
+          <form method="post" action="/recommend" data-recommend class="inline-form">
+            <input type="hidden" name="song_id" value="{{ rec.song_id }}">
+            <button type="submit" class="button">Discover more like this</button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+
+  <details class="scoring">
+    <summary>How similarity scores work</summary>
+    <p>{{ result.scoring.description }}</p>
+    <ul>
+      {% for name, weight in result.scoring.weights.items() %}<li>{{ name | capitalize }}: {{ (weight * 100) | round | int }}%</li>{% endfor %}
+    </ul>
+  </details>
+</section>
+
+<section class="search-again" aria-labelledby="again-heading">
+  <h2 id="again-heading">Try another song</h2>
+  <form class="search-form" method="post" action="/recommend" data-recommend novalidate>
+    <label for="again-url" class="visually-hidden">Song link</label>
+    <input id="again-url" name="url" type="url" inputmode="url" autocomplete="off" maxlength="2048" required placeholder="https://open.spotify.com/track/… or https://youtu.be/…">
+    <button type="submit" class="button">Find similar songs</button>
+  </form>
+</section>
+{% endblock %}

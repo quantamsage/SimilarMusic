@@ -5,14 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }}{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', path='css/styles.css') }}">
+  <script type="module" src="{{ url_for('static', path='js/app.js') }}"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
-    <a class="brand" href="{{ url_for('home') }}">{{ app_name }}</a>
+    <div class="header-inner">
+      <a class="brand" href="{{ url_for('home') }}">{{ app_name }}</a>
+      {% block header_actions %}{% endblock %}
+    </div>
   </header>
-  <main class="container">
+  <main class="container" id="main">
     {% block content %}{% endblock %}
   </main>
+
+  {# Shown by app.js while recommendations are being prepared. #}
+  <div class="loading" id="loading" role="status" aria-live="polite" hidden>
+    <div class="loading-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <h2 class="loading-title" id="loading-title">Finding similar songs…</h2>
+      <ol class="loading-steps" id="loading-steps">
+        <li data-after="0">Identifying the song</li>
+        <li data-after="3">Finding similar music on Last.fm</li>
+        <li data-after="8">Analysing the song and the candidates with AI</li>
+        <li data-after="25">Ranking and explaining the recommendations</li>
+      </ol>
+      <p class="loading-note"><span id="loading-elapsed">0</span> s · this usually takes 20 to 60 seconds.</p>
+      <p class="loading-slow" id="loading-slow" hidden>Still working. AI analysis can take a couple of minutes for some songs.</p>
+      <button type="button" class="button button-secondary" id="loading-cancel">Cancel</button>
+    </div>
+  </div>
+
   <footer class="site-footer">
     <p>{{ app_name }} links to songs on their original platforms. No music is hosted here.</p>
   </footer>

@@ -1,0 +1,23 @@
+{# The song link form. Without JavaScript it posts to /recommend; app.js
+   sends it to the JSON API and shows progress instead. #}
+<form class="search-form" id="song-form" method="post" action="/recommend" data-recommend novalidate>
+  <label for="song-url" class="visually-hidden">Song link</label>
+  <input
+    id="song-url"
+    name="url"
+    type="url"
+    inputmode="url"
+    autocomplete="off"
+    placeholder="https://open.spotify.com/track/… or https://youtu.be/…"
+    value="{{ url or '' }}"
+    maxlength="2048"
+    required
+    aria-describedby="form-error"
+    {% if error and error.code in ('invalid_url', 'unsupported_platform', 'song_not_found') %}aria-invalid="true"{% endif %}
+  >
+  <button type="submit" class="button">Find similar songs</button>
+</form>
+<div class="form-error" id="form-error" role="alert" {% if not error %}hidden{% endif %}>
+  <p class="form-error-message" data-error-message>{{ error.message if error else '' }}</p>
+  <p class="form-error-hint" data-error-hint {% if not (error and error.hint) %}hidden{% endif %}>{{ error.hint if error else '' }}</p>
+</div>

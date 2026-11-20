@@ -23,10 +23,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     init_db()
     async with httpx.AsyncClient(timeout=settings.http_timeout_seconds, follow_redirects=False) as http:
-        app.state.metadata_providers = [
-            SpotifyClient(http, settings.spotify_client_id, settings.spotify_client_secret, settings.spotify_market),
-            YouTubeClient(http, settings.youtube_api_key),
-        ]
+        spotify = SpotifyClient(http, settings.spotify_client_id, settings.spotify_client_secret, settings.spotify_market)
+        app.state.metadata_providers = [spotify, YouTubeClient(http, settings.youtube_api_key)]
+        app.state.spotify = spotify if settings.spotify_client_id and settings.spotify_client_secret else None
         app.state.lastfm = LastFmClient(http, settings.lastfm_api_key)
         app.state.ai = (
             ClaudeProvider(

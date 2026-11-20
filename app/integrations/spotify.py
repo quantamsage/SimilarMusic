@@ -1,8 +1,9 @@
 """Spotify Web API integration (Client Credentials flow, track metadata only).
 
-Uses GET /v1/tracks/{id}, which remains available to Development Mode apps after
-Spotify's February 2026 changes. Audio features and recommendations are not used:
-those endpoints are unavailable to new apps.
+Uses GET /v1/tracks/{id} and GET /v1/search, which remain available to
+Development Mode apps after Spotify's February 2026 changes (search now returns
+at most 10 results per request; 5 are requested). Audio features and
+recommendations are not used: those endpoints are unavailable to new apps.
 """
 
 import base64
@@ -15,6 +16,7 @@ from app.errors import ProviderNotConfiguredError, ProviderUnavailableError, Son
 from app.integrations.http import send
 from app.schemas.song import SongMetadata
 from app.services.link_parser import Platform
+from app.services.text import base_title, clean_title, normalize, primary_artist
 
 TOKEN_URL = "https://accounts.spotify.com/api/token"
 API_BASE = "https://api.spotify.com/v1"
@@ -58,6 +60,18 @@ class _Track(BaseModel):
     external_ids: _ExternalIds = _ExternalIds()
 
 
+class _TrackPage(BaseModel):
+    items: list[_Track] = []
+
+
+class _SearchResult(BaseModel):
+    tracks: _TrackPage = _TrackPage()
+
+
+#: Results requested per search (Spotify allows at most 10).
+SEARCH_LIMIT = 5
+
+
 class _Token(BaseModel):
     access_token: str
     expires_in: int
@@ -94,6 +108,36 @@ class SpotifyClient:
             return _to_song(track)
         except (ValidationError, ValueError) as exc:
             raise ProviderUnavailableError("Spotify returned song data in an unexpected format.") from exc
+
+    async def search_track(self, title: str, artist: str) -> SongMetadata | None:
+        """Finds the Spotify track for a song known by title and artist.
+
+        Only a result whose title and one of whose artists match (ignoring
+        case, accents, punctuation, featuring credits and remaster labels)
+        is returned; otherwise None. Search results are never trusted
+        blindly, so a different song is never presented as this one.
+        """
+        query = f'track:"{_quote(clean_title(title))}" artist:"{_quote(primary_artist(artist))}"'
+        response = await self._get(
+            f"{API_BASE}/search",
+            {"q": query, "type": "track", "limit": str(SEARCH_LIMIT), "market": self._market},
+        )
+        if response.status_code == 400:
+            return None
+        if response.status_code != 200:
+            raise ProviderUnavailableError(f"Spotify search returned an unexpected error ({response.status_code}).")
+        try:
+            items = _SearchResult.model_validate(response.json()).tracks.items
+        except (ValidationError, ValueError) as exc:
+            raise ProviderUnavailableError("Spotify returned search results in an unexpected format.") from exc
+
+        wanted_title = base_title(title)
+        wanted_artist = normalize(primary_artist(artist))
+        for track in items:
+            artists = {normalize(a.name) for a in track.artists}
+            if base_title(track.name) == wanted_title and wanted_artist in artists:
+                return _to_song(track)
+        return None
 
     async def _get(self, url: str, params: dict[str, str]) -> httpx.Response:
         """GET with a bearer token, refreshing the token once if Spotify rejects it."""
@@ -164,3 +208,8 @@ def _to_song(track: _Track) -> SongMetadata:
         url=track.external_urls.spotify or f"https://open.spotify.com/track/{track.id}",
         attributes=attributes,
     )
+
+
+def _quote(text: str) -> str:
+    """Text for use inside a quoted search field."""
+    return text.replace('"', " ").strip()

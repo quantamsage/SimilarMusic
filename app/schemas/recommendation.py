@@ -52,6 +52,13 @@ class Recommendation(BaseModel):
     artist: str
     platform: str
     url: str | None
+    album: str | None = None
+    #: Album artwork, when the song was found on a streaming platform.
+    artwork_url: str | None = None
+    #: Where to listen: the song on Spotify when it was matched there,
+    #: otherwise its Last.fm page.
+    listen_url: str | None = None
+    listen_platform: str | None = None
     similarity_score: float = Field(ge=0, le=1)
     score_breakdown: ScoreBreakdown
     explanation: str

@@ -7,6 +7,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.integrations.lastfm import LastFmClient
 from app.services.ai_service import AIProvider
+from app.services.listening_links import ListeningLinkService, TrackSearcher
 from app.services.music_discovery import MusicDiscoveryService
 from app.services.music_metadata import MetadataProvider, MusicMetadataService
 from app.services.recommendations import RecommendationService
@@ -37,10 +38,16 @@ def get_ai_provider(request: Request) -> AIProvider | None:
     return request.app.state.ai
 
 
+def get_track_searcher(request: Request) -> TrackSearcher | None:
+    """Finds recommended songs on Spotify for artwork and listening links."""
+    return getattr(request.app.state, "spotify", None)
+
+
 def get_recommendation_service(
     metadata: MusicMetadataService = Depends(get_metadata_service),
     discovery: MusicDiscoveryService = Depends(get_discovery_service),
     ai: AIProvider | None = Depends(get_ai_provider),
+    searcher: TrackSearcher | None = Depends(get_track_searcher),
     db: Session = Depends(get_db),
 ) -> RecommendationService:
     settings = get_settings()
@@ -51,4 +58,5 @@ def get_recommendation_service(
         db,
         count=settings.recommendation_count,
         cache_hours=settings.recommendation_cache_hours,
+        links=ListeningLinkService(searcher) if searcher is not None else None,
     )

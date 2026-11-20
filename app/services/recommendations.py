@@ -33,6 +33,7 @@ from app.schemas.song import SongMetadata
 from app.services.ai_service import AIProvider
 from app.services.link_parser import Platform
 from app.services.music_discovery import MusicDiscoveryService
+from app.services.listening_links import ListeningLinkService
 from app.services.music_metadata import MusicMetadataService
 from app.services.recommendation_engine import SCORING_METHOD, RecommendationEngine
 from app.services.song_analyzer import SongAnalyzer
@@ -48,7 +49,9 @@ class RecommendationService:
         db: Session,
         count: int = 10,
         cache_hours: float = 24.0,
+        links: ListeningLinkService | None = None,
     ) -> None:
+        self._links = links
         self._metadata = metadata
         self._discovery = discovery
         self._ai = ai
@@ -65,6 +68,7 @@ class RecommendationService:
 
         cached = self._recent_result(song_row.id)
         if cached is not None:
+            await self._add_listening_links(cached)
             return self.response(cached, cached=True)
 
         request = RecommendationRequest(original_song=song_row, status=RequestStatus.PENDING)
@@ -106,7 +110,15 @@ class RecommendationService:
         except Exception:
             self._fail(request, "Something went wrong while finding recommendations.")
             raise
+        await self._add_listening_links(request)
         return self.response(request, cached=False)
+
+    async def _add_listening_links(self, request: RecommendationRequest) -> None:
+        """Adds artwork and streaming links to the recommended songs (best effort)."""
+        if self._links is None:
+            return
+        await self._links.enrich([row.song for row in request.recommendations])
+        self._db.commit()
 
     def get(self, request_id: int) -> RecommendationResponse:
         request = self._db.get(RecommendationRequest, request_id)
@@ -177,6 +189,8 @@ class RecommendationService:
         recommendations = []
         for row in request.recommendations:
             details = row.details or {}
+            listen = (row.song.attributes or {}).get("listen") or {}
+            listen_url = listen.get("url") or row.song.url
             recommendations.append(
                 RecommendationOut(
                     rank=row.rank,
@@ -185,6 +199,10 @@ class RecommendationService:
                     artist=row.song.artist,
                     platform=row.song.platform,
                     url=row.song.url,
+                    album=row.song.album,
+                    artwork_url=row.song.artwork_url,
+                    listen_url=listen_url,
+                    listen_platform=(listen.get("platform") if listen.get("url") else row.song.platform) if listen_url else None,
                     similarity_score=row.similarity_score,
                     score_breakdown=ScoreBreakdown(**details.get("breakdown", {})),
                     explanation=row.explanation,

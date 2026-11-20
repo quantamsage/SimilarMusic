@@ -2,7 +2,7 @@
 
 A web app for discovering music: paste a link to a song you like and get similar songs back, ranked by AI with a short explanation for each.
 
-> **Status:** Phases 1–4 are done: link processing, music discovery (Last.fm) and AI ranking work through the JSON API. The results page and "discover more" button in the browser come in Phase 5; until then the home page form is disabled.
+> **Status:** Phases 1–5 are done: paste a link on the home page, wait while the song is identified, discovered and analysed, and browse the ranked recommendations with artwork, scores and explanations; any recommendation can start a new search. Phase 6 (final testing and polish) remains.
 
 ## Requirements
 
@@ -44,6 +44,14 @@ python run.py
 
 Open http://127.0.0.1:8000.
 
+## Using it
+
+1. Paste a Spotify track link or a YouTube video link and choose **Find similar songs**. A progress panel shows what is happening (identifying the song, finding similar music, AI analysis, ranking); a first search usually takes 20–60 seconds. **Cancel** (or Esc) stops waiting.
+2. The results page (`/results/<id>`, which you can bookmark) shows your song with its artwork, album, a link back to its platform and the characteristics found for it (hover to see the evidence), then the recommendations: artwork, similarity score, the reason it was recommended, tags, a **Listen** link that opens the song in a new tab, and **Discover more like this**, which runs a new search from that song.
+3. If something goes wrong (an invalid or unsupported link, a song that can't be found, a music service or the AI being unavailable, or no recommendations), the page says what happened and what to try next, and keeps your link in the box.
+
+The pages also work without JavaScript: the form posts to `/recommend`, which redirects to the results when they are ready.
+
 ## Supported links
 
 - Spotify: `https://open.spotify.com/track/<id>` (including `?si=` share parameters, `intl-xx/` paths and `embed/` links) and `spotify:track:<id>` URIs. Shortened `spotify.link` links aren't supported because resolving them would require fetching a user-supplied URL.
@@ -67,6 +75,7 @@ YouTube has no structured song data, so the artist and title are taken from the 
    | AI rubric | 30% | strong = 1, partial = 0.5, weak = 0, averaged over rated dimensions |
 
    Missing components are left out and the remaining weights rescaled. Every recommendation returns its breakdown and where its explanation came from (`ai`, or `tags` / `listening_data` when the AI could not explain it from data).
+5. **Artwork and listening links.** Last.fm doesn't provide artwork, so each recommended song is searched on Spotify (`GET /v1/search`, which remains available to Development Mode apps after Spotify's February 2026 changes, with at most 10 results per request; 5 are requested). A result is used only when its title and one of its artists match the recommendation (ignoring case, accents, featuring credits and remaster labels); its album artwork and Spotify link are then stored with the song. Songs that Spotify doesn't have keep their Last.fm link and are shown with a placeholder. Searches run four at a time, happen once per song (a miss is retried after a week), and never block the results: if Spotify is unavailable or not configured, recommendations are shown without artwork.
 
 Model and behaviour are configurable: `AI_MODEL` (default `claude-opus-5-5`), `AI_EFFORT` (default `medium`), `AI_TIMEOUT_SECONDS`, `RECOMMENDATION_COUNT` (default 10). For models that support it, server-side refusal fallbacks are enabled so a request declined by a safety classifier is retried on a fallback model instead of failing.
 
@@ -78,6 +87,14 @@ Model and behaviour are configurable: `AI_MODEL` (default `claude-opus-5-5`), `A
 | `POST /api/discovery` `{"url": …}` | The song plus the candidate songs found for it (before AI ranking). |
 | `POST /api/recommendations` `{"url": …}` or `{"song_id": …}` | Ranked recommendations with scores, breakdowns and explanations. `song_id` (from an earlier result) is "discover more like this". |
 | `GET /api/recommendations/{request_id}` | A stored result. |
+
+Each recommendation includes `title`, `artist`, `album`, `artwork_url`, `similarity_score`, `score_breakdown`, `explanation`, `explanation_source`, `tags`, `found_via`, its source `platform`/`url` (Last.fm) and `listen_platform`/`listen_url` (Spotify when matched, otherwise Last.fm).
+
+| Page | Purpose |
+| --- | --- |
+| `GET /` | Home page with the song link form |
+| `POST /recommend` | Form target (`url` or `song_id`) without JavaScript: redirects to the results, or shows the home page with the error |
+| `GET /results/{request_id}` | The results page |
 
 Errors come back as `{"error": "<code>", "message": "<explanation>"}`:
 
@@ -102,7 +119,8 @@ Errors come back as `{"error": "<code>", "message": "<explanation>"}`:
 
 ## Limitations
 
-- Last.fm has no artwork in its API, so recommended songs have no artwork yet; Phase 5 will look it up when displaying results. Recommended songs link to their Last.fm pages, which link to streaming platforms.
+- Artwork and Spotify links for recommendations need Spotify credentials and only appear for songs Spotify has under the same title and artist; other songs link to their Last.fm page and show a placeholder.
+- Progress messages are based on elapsed time (the request runs as one call), so they show the typical order of the steps rather than live server progress.
 - Characteristics such as tempo or instrumentation are only reported when tags support them; many songs will show them as unknown rather than guessed.
 - Very new or obscure songs may have no Last.fm data and return `no_recommendations`.
 - A recommendation request makes two AI calls and up to about 40 Last.fm calls; the first request for a song can take some time.

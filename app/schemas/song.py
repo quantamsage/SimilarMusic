@@ -18,7 +18,8 @@ class SongMetadata(BaseModel):
     artist: str = Field(min_length=1, max_length=300)
     album: str | None = Field(default=None, max_length=300)
     artwork_url: str | None = Field(default=None, max_length=1000)
-    url: str
+    #: The song's page; None for a song found only on Last.fm without a page link.
+    url: str | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 

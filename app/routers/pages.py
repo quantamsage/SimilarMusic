@@ -18,8 +18,8 @@ from pydantic import ValidationError
 
 from app.config import get_settings
 from app.dependencies import get_recommendation_service
-from app.errors import SongLookupError
-from app.schemas.recommendation import RecommendationRequestBody, RecommendationResponse
+from app.errors import SongLookupError, SongNotFoundError
+from app.schemas.recommendation import MAX_ID, RecommendationRequestBody, RecommendationResponse
 from app.services.recommendations import RecommendationService
 from app.templating import templates
 
@@ -79,6 +79,14 @@ async def _form(request: Request) -> dict[str, str]:
     return {key: values[0].strip() for key, values in fields.items() if values}
 
 
+def _parse_id(text: str) -> int | None:
+    """A database id from form or path text, or None (no Unicode digits, no overflow)."""
+    if not (text.isascii() and text.isdigit() and len(text) <= 19):
+        return None
+    value = int(text)
+    return value if 1 <= value <= MAX_ID else None
+
+
 @router.post("/recommend", response_class=HTMLResponse)
 async def recommend(
     request: Request,
@@ -90,7 +98,7 @@ async def recommend(
     try:
         body = RecommendationRequestBody(
             url=url or None,
-            song_id=int(song_id) if song_id.isdigit() else None,
+            song_id=_parse_id(song_id),
         )
     except ValidationError:
         error = {"code": "invalid_url", "message": "Paste a link to a song first.", "hint": ERROR_HINTS["invalid_url"]}
@@ -115,11 +123,14 @@ def _results_context(result: RecommendationResponse) -> dict:
 @router.get("/results/{request_id}", response_class=HTMLResponse)
 async def results(
     request: Request,
-    request_id: int,
+    request_id: str,
     service: RecommendationService = Depends(get_recommendation_service),
 ) -> HTMLResponse:
     try:
-        result = service.get(request_id)
+        parsed = _parse_id(request_id)
+        if parsed is None:
+            raise SongNotFoundError("Those recommendations don't exist.")
+        result = service.get(parsed)
     except SongLookupError:
         error = {
             "code": "not_found",

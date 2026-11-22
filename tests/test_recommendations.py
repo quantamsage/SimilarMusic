@@ -201,3 +201,62 @@ def test_add_missing_columns(tmp_path) -> None:
     columns = {c["name"] for c in inspect(engine).get_columns("recommendation_requests")}
     assert {"analysis", "error"} <= columns
     assert add_missing_columns(engine) == []
+
+
+def test_discover_more_from_a_song_without_a_page(env: Env) -> None:
+    """Last.fm doesn't always give a page link; such songs can still seed
+    "discover more"."""
+    from app.integrations.lastfm import LastFmTrack
+
+    env.fm.similar[("m83", "midnight city")].append(LastFmTrack(title="Nightcall", artist="Kavinsky", match=0.6, url=None))
+    queue_success(env.ai)
+    body = env.post(url=URL).json()
+    nightcall = next(r for r in body["recommendations"] if r["title"] == "Nightcall")
+    assert nightcall["url"] is None
+
+    env.fm.similar[("kavinsky", "nightcall")] = [track("Kids", "MGMT", 0.8), track("Intro", "The xx", 0.7)]
+    respond = lambda prompt: evaluations_for(prompt) if "<candidates>" in prompt else analysis_response()  # noqa: E731
+    env.ai.responses.extend([respond, respond])
+    response = env.post(song_id=nightcall["song_id"])
+    assert response.status_code == 200, response.text
+    assert response.json()["song"]["url"] is None
+    page = env.client.get(f"/results/{response.json()['request_id']}")
+    assert page.status_code == 200 and "Nightcall" in page.text
+
+
+def test_out_of_range_ids_are_rejected(env: Env) -> None:
+    assert env.post(song_id=10**30).status_code == 422
+    assert env.client.get(f"/api/recommendations/{10**30}").status_code == 422
+    assert env.client.get("/api/recommendations/0").status_code == 422
+
+
+def test_the_same_song_under_two_spellings_is_recommended_once(env: Env) -> None:
+    env.fm.similar[("m83", "midnight city")] += [track("Strobe - Radio Edit", "deadmau5", 0.6), track("Strobe (Radio Edit)", "deadmau5", 0.6)]
+    queue_success(env.ai)
+    response = env.post(url=URL)
+    assert response.status_code == 200, response.text
+    ids = [r["song_id"] for r in response.json()["recommendations"]]
+    assert len(ids) == len(set(ids))
+    assert [r["rank"] for r in response.json()["recommendations"]] == list(range(1, len(ids) + 1))
+
+
+def test_recommended_songs_are_shared_between_results(env: Env, client: TestClient) -> None:
+    """A second result recommending the same songs reuses their rows (insert-or-ignore)."""
+    from app.dependencies import get_settings  # noqa: F401
+    from app.services.recommendations import RecommendationService
+
+    queue_success(env.ai)
+    first = env.post(url=URL).json()
+    from app.database import SessionLocal
+    from app.models import Song
+
+    with SessionLocal() as db:
+        before = db.query(Song).count()
+        service = RecommendationService(metadata=None, discovery=None, ai=None, db=db)  # type: ignore[arg-type]
+        from app.schemas.discovery import Candidate
+
+        rec = first["recommendations"][0]
+        row = service._candidate_song(Candidate(title=rec["title"], artist=rec["artist"], url=rec["url"]))
+        db.commit()
+        assert row.id == rec["song_id"]
+        assert db.query(Song).count() == before

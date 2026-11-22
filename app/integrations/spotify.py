@@ -13,7 +13,7 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from app.errors import ProviderNotConfiguredError, ProviderUnavailableError, SongNotFoundError
-from app.integrations.http import send
+from app.integrations.http import https_url, send
 from app.schemas.song import SongMetadata
 from app.services.link_parser import Platform
 from app.services.text import base_title, clean_title, normalize, primary_artist
@@ -136,7 +136,10 @@ class SpotifyClient:
         for track in items:
             artists = {normalize(a.name) for a in track.artists}
             if base_title(track.name) == wanted_title and wanted_artist in artists:
-                return _to_song(track)
+                try:
+                    return _to_song(track)
+                except ValidationError as exc:
+                    raise ProviderUnavailableError("Spotify returned search results in an unexpected format.") from exc
         return None
 
     async def _get(self, url: str, params: dict[str, str]) -> httpx.Response:
@@ -204,8 +207,8 @@ def _to_song(track: _Track) -> SongMetadata:
         title=track.name,
         artist=", ".join(artist.name for artist in track.artists),
         album=track.album.name or None,
-        artwork_url=images[0].url if images else None,
-        url=track.external_urls.spotify or f"https://open.spotify.com/track/{track.id}",
+        artwork_url=https_url(images[0].url) if images else None,
+        url=https_url(track.external_urls.spotify) or f"https://open.spotify.com/track/{track.id}",
         attributes=attributes,
     )
 

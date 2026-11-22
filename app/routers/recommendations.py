@@ -1,9 +1,9 @@
 """JSON API for AI-ranked recommendations."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path
 
 from app.dependencies import get_recommendation_service
-from app.schemas.recommendation import RecommendationRequestBody, RecommendationResponse
+from app.schemas.recommendation import MAX_ID, RecommendationRequestBody, RecommendationResponse
 from app.schemas.song import ErrorResponse
 from app.services.recommendations import RecommendationService
 
@@ -24,7 +24,7 @@ async def create_recommendations(
 
 @router.get("/{request_id}", response_model=RecommendationResponse, responses=ERRORS)
 async def get_recommendations(
-    request_id: int,
+    request_id: int = Path(ge=1, le=MAX_ID),
     service: RecommendationService = Depends(get_recommendation_service),
 ) -> RecommendationResponse:
     return service.get(request_id)

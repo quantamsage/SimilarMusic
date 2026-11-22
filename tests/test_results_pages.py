@@ -149,7 +149,11 @@ def test_unknown_results_and_oversized_forms(env: Env) -> None:
     response = env.client.get("/results/999")
     assert response.status_code == 404
     assert escape("Those recommendations don't exist.") in response.text
-    assert env.client.get("/results/abc").status_code == 422
+    for bad in ("abc", "²", "9" * 30, "0", "-1"):
+        assert env.client.get(f"/results/{bad}").status_code == 404, bad
+    for bad in ("²", "9" * 30, "9" * 5000):
+        response = env.client.post("/recommend", data={"song_id": bad})
+        assert response.status_code == 400, bad
     response = env.client.post("/recommend", content=b"url=" + b"x" * 9000, headers={"content-type": "application/x-www-form-urlencoded"})
     assert response.status_code == 400
 

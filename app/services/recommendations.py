@@ -15,6 +15,7 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from app.errors import AINotConfiguredError, NoCandidatesError, SongLookupError, SongNotFoundError
@@ -89,11 +90,18 @@ class RecommendationService:
             if not ranked:
                 raise NoCandidatesError("None of the songs found had enough data to recommend. Try another song.")
 
-            for position, item in enumerate(ranked, start=1):
+            used: set[int] = set()
+            position = 0
+            for item in ranked:
+                song_row = self._candidate_song(item.candidate)
+                if song_row.id in used:  # two spellings of the same song
+                    continue
+                used.add(song_row.id)
+                position += 1
                 self._db.add(
                     Recommendation(
                         request=request,
-                        song=self._candidate_song(item.candidate),
+                        song=song_row,
                         similarity_score=item.score,
                         explanation=item.explanation,
                         rank=position,
@@ -169,12 +177,16 @@ class RecommendationService:
         attributes = {"tags": [t.model_dump() for t in candidate.tags]}
         if candidate.mbid:
             attributes["mbid"] = candidate.mbid
+        # Insert-or-ignore is atomic, so concurrent requests recommending
+        # the same song don't collide on the unique (platform, external_id).
+        self._db.execute(
+            sqlite_insert(Song)
+            .values(platform=Platform.LASTFM.value, external_id=external_id, title=candidate.title[:300], artist=candidate.artist[:300])
+            .on_conflict_do_nothing(index_elements=["platform", "external_id"])
+        )
         row = self._db.scalars(
             select(Song).where(Song.platform == Platform.LASTFM.value, Song.external_id == external_id)
-        ).first()
-        if row is None:
-            row = Song(platform=Platform.LASTFM.value, external_id=external_id)
-            self._db.add(row)
+        ).one()
         row.title = candidate.title[:300]
         row.artist = candidate.artist[:300]
         row.url = candidate.url

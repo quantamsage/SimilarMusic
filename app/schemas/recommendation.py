@@ -4,6 +4,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, model_validator
 
+#: Largest id SQLite can store (signed 64-bit).
+MAX_ID = 2**63 - 1
+
 from app.schemas.discovery import Tag
 from app.schemas.song import SongMetadata
 
@@ -88,7 +91,7 @@ class RecommendationRequestBody(BaseModel):
     """Either a song link or a song the editor already knows (from a previous result)."""
 
     url: str | None = Field(default=None, min_length=1, max_length=2048)
-    song_id: int | None = Field(default=None, ge=1)
+    song_id: int | None = Field(default=None, ge=1, le=MAX_ID)
 
     @model_validator(mode="after")
     def exactly_one(self) -> "RecommendationRequestBody":

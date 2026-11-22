@@ -25,9 +25,9 @@
       <p class="song-artist">{{ song.artist }}</p>
       {% if song.album %}<p class="song-album">{{ song.album }}</p>{% endif %}
       <p class="song-actions">
-        <a class="button button-secondary" href="{{ song.url }}" target="_blank" rel="noopener noreferrer">
+        {% if song.url %}<a class="button button-secondary" href="{{ song.url }}" target="_blank" rel="noopener noreferrer">
           Open on {{ platform_names.get(song.platform.value, song.platform.value) }}<span class="visually-hidden"> (opens in a new tab)</span> ↗
-        </a>
+        </a>{% endif %}
       </p>
       {% if result.analysis.characteristics %}
       <dl class="traits" aria-label="What the song is like">

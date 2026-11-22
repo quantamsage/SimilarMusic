@@ -17,7 +17,7 @@ from app.errors import (
     RateLimitedError,
     SongNotFoundError,
 )
-from app.integrations.http import send
+from app.integrations.http import https_url, send
 from app.schemas.song import SongMetadata
 from app.services.link_parser import Platform
 
@@ -188,7 +188,7 @@ def split_artist_and_title(video_title: str, channel_title: str) -> tuple[str, s
 def _best_thumbnail(thumbnails: dict[str, _Thumbnail]) -> str | None:
     if not thumbnails:
         return None
-    return max(thumbnails.values(), key=lambda thumbnail: thumbnail.width or 0).url
+    return https_url(max(thumbnails.values(), key=lambda thumbnail: thumbnail.width or 0).url)
 
 
 def _duration_ms(value: str | None) -> int | None:

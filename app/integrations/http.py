@@ -34,3 +34,16 @@ def _parse_retry_after(value: str | None) -> int | None:
         return max(0, int(value))
     except ValueError:
         return None
+
+
+def https_url(value: str | None) -> str | None:
+    """The URL if it is an https URL with a host, else None. Provider data
+    ends up in href/src attributes, so other schemes (javascript:, data:)
+    are never passed on."""
+    if not value or len(value) > 1000:
+        return None
+    try:
+        parsed = httpx.URL(value)
+    except (httpx.InvalidURL, TypeError, ValueError):
+        return None
+    return value if parsed.scheme == "https" and parsed.host else None

@@ -19,6 +19,7 @@ export const ERROR_HINTS = {
   no_recommendations: "This song doesn't have enough listening data yet. Try a more widely known song.",
   ai_not_configured: "The server has no AI API key configured. See the README.",
   ai_failed: "The AI analysis didn't complete. Try again in a moment.",
+  too_many_requests: "This limit keeps the service available for everyone.",
   network: "Check that the server is running and your connection works, then try again.",
   timeout: "The server took too long. Try again; results for this song may already be ready.",
 };

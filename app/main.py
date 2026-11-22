@@ -15,6 +15,7 @@ from app.integrations.lastfm import LastFmClient
 from app.integrations.spotify import SpotifyClient
 from app.integrations.youtube import YouTubeClient
 from app.routers import discovery, pages, recommendations, songs
+from app.security import SlidingWindowLimiter, TooManyRequestsError, protect
 from app.services.ai_service import ClaudeProvider
 
 
@@ -22,6 +23,7 @@ from app.services.ai_service import ClaudeProvider
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     init_db()
+    app.state.recommendation_limiter = SlidingWindowLimiter(settings.recommendations_per_client_per_hour)
     async with httpx.AsyncClient(timeout=settings.http_timeout_seconds, follow_redirects=False) as http:
         spotify = SpotifyClient(http, settings.spotify_client_id, settings.spotify_client_secret, settings.spotify_market)
         app.state.metadata_providers = [spotify, YouTubeClient(http, settings.youtube_api_key)]
@@ -42,7 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 async def handle_lookup_error(_: Request, exc: SongLookupError) -> JSONResponse:
     headers: dict[str, str] = {}
-    if isinstance(exc, RateLimitedError) and exc.retry_after is not None:
+    if isinstance(exc, (RateLimitedError, TooManyRequestsError)) and exc.retry_after is not None:
         headers["Retry-After"] = str(exc.retry_after)
     return JSONResponse(
         status_code=exc.status_code,
@@ -56,6 +58,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
     app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
     app.add_exception_handler(SongLookupError, handle_lookup_error)
+    app.middleware("http")(protect)
     app.include_router(pages.router)
     app.include_router(songs.router)
     app.include_router(discovery.router)

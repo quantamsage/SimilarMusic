@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     # Recommendations.
     recommendation_count: int = Field(default=10, ge=1, le=25)
     recommendation_cache_hours: float = Field(default=24.0, ge=0)
+    # Recommendation requests one client (IP address) may make per hour; 0 = unlimited.
+    recommendations_per_client_per_hour: int = Field(default=30, ge=0)
 
 
 @lru_cache

@@ -20,6 +20,7 @@ from app.config import get_settings
 from app.dependencies import get_recommendation_service
 from app.errors import SongLookupError, SongNotFoundError
 from app.schemas.recommendation import MAX_ID, RecommendationRequestBody, RecommendationResponse
+from app.security import limit_recommendations
 from app.services.recommendations import RecommendationService
 from app.templating import templates
 
@@ -54,6 +55,7 @@ ERROR_HINTS = {
     "no_recommendations": "This song doesn't have enough listening data yet. Try a more widely known song.",
     "ai_not_configured": "The server has no AI API key configured. See the README.",
     "ai_failed": "The AI analysis didn't complete. Try again in a moment.",
+    "too_many_requests": "This limit keeps the service available for everyone.",
 }
 
 
@@ -104,6 +106,7 @@ async def recommend(
         error = {"code": "invalid_url", "message": "Paste a link to a song first.", "hint": ERROR_HINTS["invalid_url"]}
         return _home(request, 400, url, error)
     try:
+        limit_recommendations(request)
         result = await service.recommend(body)
     except SongLookupError as exc:
         error = {"code": exc.code, "message": exc.message, "hint": ERROR_HINTS.get(exc.code, "")}

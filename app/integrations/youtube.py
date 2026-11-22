@@ -35,7 +35,23 @@ TOPIC_SUFFIX = re.compile(r"\s+-\s+Topic$", re.IGNORECASE)
 CHANNEL_SUFFIX = re.compile(r"(VEVO|\s+Official)$", re.IGNORECASE)
 ISO_DURATION = re.compile(r"^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$")
 QUOTA_REASONS = {"quotaExceeded", "rateLimitExceeded", "userRateLimitExceeded", "dailyLimitExceeded"}
-KEY_REASONS = {"keyInvalid", "keyExpired", "accessNotConfigured", "forbidden", "ipRefererBlocked"}
+KEY_REASONS = {
+    "keyInvalid",
+    "keyExpired",
+    "accessNotConfigured",
+    "forbidden",
+    "ipRefererBlocked",
+    # Google's newer error format reports the precise cause in
+    # error.details[].reason (errors[].reason is just "badRequest").
+    "API_KEY_INVALID",
+    "API_KEY_EXPIRED",
+    "API_KEY_SERVICE_BLOCKED",
+    "API_KEY_HTTP_REFERRER_BLOCKED",
+    "API_KEY_IP_ADDRESS_BLOCKED",
+    "API_KEY_ANDROID_APP_BLOCKED",
+    "API_KEY_IOS_APP_BLOCKED",
+    "SERVICE_DISABLED",
+}
 
 
 class _Thumbnail(BaseModel):
@@ -109,11 +125,19 @@ def _raise_for_error(response: httpx.Response) -> None:
 
 
 def _error_reasons(response: httpx.Response) -> set[str]:
+    """Error reasons from both `error.errors[]` and `error.details[]`."""
     try:
-        errors = response.json()["error"]["errors"]
-        return {str(error.get("reason", "")) for error in errors}
-    except (ValueError, KeyError, TypeError, AttributeError):
+        error = response.json()["error"]
+    except (ValueError, KeyError, TypeError):
         return set()
+    if not isinstance(error, dict):
+        return set()
+    reasons: set[str] = set()
+    for key in ("errors", "details"):
+        items = error.get(key)
+        if isinstance(items, list):
+            reasons.update(str(item["reason"]) for item in items if isinstance(item, dict) and item.get("reason"))
+    return reasons
 
 
 def _to_song(video: _Video) -> SongMetadata:

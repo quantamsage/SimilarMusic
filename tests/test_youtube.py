@@ -41,6 +41,30 @@ def api_error(status: int, reason: str) -> httpx.Response:
     return httpx.Response(status, json={"error": {"code": status, "errors": [{"reason": reason}]}})
 
 
+# The response the live API gave for an invalid key (captured 2026-11-23):
+# the precise reason is only in `details`.
+INVALID_KEY_RESPONSE = httpx.Response(
+    400,
+    json={
+        "error": {
+            "code": 400,
+            "message": "API key not valid. Please pass a valid API key.",
+            "errors": [{"message": "API key not valid. Please pass a valid API key.", "domain": "global", "reason": "badRequest"}],
+            "status": "INVALID_ARGUMENT",
+            "details": [
+                {
+                    "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                    "reason": "API_KEY_INVALID",
+                    "domain": "googleapis.com",
+                    "metadata": {"service": "youtube.googleapis.com"},
+                },
+                {"@type": "type.googleapis.com/google.rpc.LocalizedMessage", "locale": "en-US", "message": "API key not valid."},
+            ],
+        }
+    },
+)
+
+
 @pytest.mark.anyio
 async def test_get_song_maps_video_metadata() -> None:
     requests: list[httpx.Request] = []
@@ -121,6 +145,9 @@ async def test_empty_result_raises_not_found() -> None:
         (api_error(403, "quotaExceeded"), RateLimitedError),
         (httpx.Response(429), RateLimitedError),
         (api_error(400, "keyInvalid"), ProviderNotConfiguredError),
+        (INVALID_KEY_RESPONSE, ProviderNotConfiguredError),
+        (httpx.Response(400, json={"error": {"details": "odd", "errors": None}}), SongNotFoundError),
+        (httpx.Response(400, json={"error": "odd"}), SongNotFoundError),
         (api_error(403, "accessNotConfigured"), ProviderNotConfiguredError),
         (httpx.Response(403), ProviderNotConfiguredError),
         (httpx.Response(404), SongNotFoundError),

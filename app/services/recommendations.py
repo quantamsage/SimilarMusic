@@ -31,7 +31,7 @@ from app.schemas.recommendation import (
 )
 from app.schemas.song import SongMetadata
 from app.services.ai_service import AIProvider
-from app.services.link_parser import Platform
+from app.services.link_parser import Platform, parse_song_url
 from app.services.music_discovery import MusicDiscoveryService
 from app.services.listening_links import ListeningLinkService
 from app.services.music_metadata import MusicMetadataService
@@ -60,6 +60,10 @@ class RecommendationService:
         self._cache_age = timedelta(hours=cache_hours)
 
     async def recommend(self, body: RecommendationRequestBody) -> RecommendationResponse:
+        if body.url is not None:
+            # Checking the link costs nothing, so a bad link is reported as
+            # such even when recommendations are unavailable.
+            parse_song_url(body.url)
         if self._ai is None:
             raise AINotConfiguredError(
                 "Recommendations aren't available: the server has no AI API key (ANTHROPIC_API_KEY) configured."

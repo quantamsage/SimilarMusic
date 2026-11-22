@@ -146,6 +146,13 @@ def test_ai_not_configured(env: Env) -> None:
     assert env.fm.calls == [], "nothing is fetched when recommendations cannot be produced"
 
 
+def test_bad_links_are_reported_before_missing_ai(env: Env) -> None:
+    env.ai = None
+    response = env.post(url="https://example.com/not-a-song")
+    assert response.status_code == 400, response.text
+    assert response.json()["error"] == "unsupported_platform"
+
+
 def test_ai_failure_is_reported_and_recorded(env: Env, client: TestClient) -> None:
     env.ai.responses.extend([AIServiceError("The AI service took too long to respond."), analysis_response()])
     response = env.post(url=URL)

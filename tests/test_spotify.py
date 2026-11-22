@@ -191,3 +191,30 @@ async def test_network_errors_raise_unavailable(exc: Exception) -> None:
 
     with pytest.raises(ProviderUnavailableError):
         await make_client(handler).get_song(TRACK_ID)
+
+
+async def test_concurrent_lookups_share_one_token_request() -> None:
+    import asyncio
+
+    token_requests = 0
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal token_requests
+        if request.url.host == "accounts.spotify.com":
+            token_requests += 1
+            await asyncio.sleep(0.01)  # let the other lookups queue up
+            return httpx.Response(200, json=TOKEN_PAYLOAD)
+        return httpx.Response(200, json=TRACK_PAYLOAD)
+
+    client = SpotifyClient(httpx.AsyncClient(transport=httpx.MockTransport(handler)), "id", "secret")
+    songs = await asyncio.gather(*(client.get_song(TRACK_ID) for _ in range(5)))
+    assert len(songs) == 5
+    assert token_requests == 1
+
+
+async def test_non_https_urls_from_spotify_are_not_used() -> None:
+    payload = {**TRACK_PAYLOAD, "external_urls": {"spotify": "javascript:alert(1)"}}
+    payload["album"] = {**TRACK_PAYLOAD["album"], "images": [{"url": "data:image/png;base64,AA", "width": 640, "height": 640}]}
+    song = await make_client(routes(httpx.Response(200, json=payload))).get_song(TRACK_ID)
+    assert song.url == f"https://open.spotify.com/track/{TRACK_ID}"
+    assert song.artwork_url is None

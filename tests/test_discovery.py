@@ -114,13 +114,33 @@ async def test_single_tag_failure_does_not_lose_discovery() -> None:
     assert kids.tags == []
 
 
-async def test_rate_limits_propagate() -> None:
+async def limited(*args, **kwargs):
+    raise RateLimitedError("slow down")
+
+
+async def test_failing_optional_sources_are_skipped() -> None:
+    """Similar artists, their top tracks, tag charts and candidate tags only
+    add data: one failing lookup doesn't lose the other candidates."""
     fm = m83_world()
-
-    async def limited(*args, **kwargs):
-        raise RateLimitedError("slow down")
-
     fm.similar_artists = limited  # type: ignore[method-assign]
+    fm.tag_top_tracks = limited  # type: ignore[method-assign]
+    fm.artist_tags = limited  # type: ignore[method-assign]
+    result = await MusicDiscoveryService(fm).discover(spotify_song())
+    assert {c.title for c in result.candidates} >= {"Kids", "Intro"}
+
+
+async def test_rate_limits_propagate_when_nothing_is_found() -> None:
+    fm = m83_world()
+    fm.similar = {}
+    fm.similar_artists = limited  # type: ignore[method-assign]
+    fm.tag_top_tracks = limited  # type: ignore[method-assign]
+    with pytest.raises(RateLimitedError):
+        await MusicDiscoveryService(fm).discover(spotify_song())
+
+
+async def test_the_main_lookup_still_fails_loudly() -> None:
+    fm = m83_world()
+    fm.similar_tracks = limited  # type: ignore[method-assign]
     with pytest.raises(RateLimitedError):
         await MusicDiscoveryService(fm).discover(spotify_song())
 

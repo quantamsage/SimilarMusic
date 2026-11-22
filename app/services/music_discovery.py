@@ -16,13 +16,16 @@ Nothing here is inferred: every field comes from Last.fm.
 """
 
 import asyncio
+import logging
 from dataclasses import dataclass
 
-from app.errors import NoCandidatesError, ProviderUnavailableError
+from app.errors import NoCandidatesError, ProviderUnavailableError, RateLimitedError, SongLookupError
 from app.integrations.lastfm import LastFmClient, LastFmTag, LastFmTrack
 from app.schemas.discovery import Candidate, DiscoveryResult, Seed, Tag
 from app.schemas.song import SongMetadata
 from app.services.text import base_title, clean_title, is_filler, normalize, primary_artist, song_key
+
+logger = logging.getLogger(__name__)
 
 #: Tags that describe listeners' habits rather than the music.
 NON_DESCRIPTIVE_TAGS = {
@@ -72,16 +75,20 @@ class MusicDiscoveryService:
         for track in similar:
             pool.add(track, "similar_track", track_match=track.match)
 
-        similar_artists = await self._lastfm.similar_artists(artist, s.similar_artist_limit)
+        # The remaining sources only add candidates: if one lookup fails, the
+        # others are still used. If nothing at all is found, the error is
+        # reported instead of "no similar songs".
+        failures: list[SongLookupError] = []
+        similar_artists = await _optional(self._lastfm.similar_artists(artist, s.similar_artist_limit), [], failures)
         top_tracks = await asyncio.gather(
-            *(self._lastfm.artist_top_tracks(a.name, s.tracks_per_similar_artist) for a in similar_artists)
+            *(_optional(self._lastfm.artist_top_tracks(a.name, s.tracks_per_similar_artist), [], failures) for a in similar_artists)
         )
         for similar_artist, tracks in zip(similar_artists, top_tracks):
             for track in tracks:
                 pool.add(track, "similar_artist", artist_match=similar_artist.match)
 
         for tag in strongest(seed_tags)[: s.seed_tags_used]:
-            for track in await self._lastfm.tag_top_tracks(tag.name, s.tracks_per_tag):
+            for track in await _optional(self._lastfm.tag_top_tracks(tag.name, s.tracks_per_tag), [], failures):
                 pool.add(track, f"tag:{tag.name}")
 
         # Artist similarity also applies to tracks found through other sources.
@@ -89,6 +96,8 @@ class MusicDiscoveryService:
         pool.apply_artist_matches(artist_matches)
 
         candidates = pool.select(s.max_per_artist, s.max_candidates)
+        if not candidates and failures:
+            raise failures[0]
         if not candidates:
             raise NoCandidatesError(
                 f"Couldn't find songs similar to “{song.title}” by {song.artist} on Last.fm. "
@@ -134,7 +143,7 @@ class MusicDiscoveryService:
                     if key not in artist_tags:
                         artist_tags[key] = self._clean_tags(await self._lastfm.artist_tags(candidate.artist), candidate.artist)
                     tags = artist_tags[key]
-            except ProviderUnavailableError:
+            except (ProviderUnavailableError, RateLimitedError):
                 # One failed lookup should not lose the whole discovery; the
                 # candidate is ranked on the data that is available.
                 tags = []
@@ -240,3 +249,14 @@ def _max(a: float | None, b: float | None) -> float | None:
     if b is None:
         return a
     return max(a, b)
+
+
+async def _optional(coroutine, default, failures: list):
+    """The coroutine's result, or `default` if the provider is unavailable
+    or rate limited (the error is recorded in `failures`)."""
+    try:
+        return await coroutine
+    except (ProviderUnavailableError, RateLimitedError) as exc:
+        logger.warning("Optional Last.fm lookup failed: %s", exc.message)
+        failures.append(exc)
+        return default

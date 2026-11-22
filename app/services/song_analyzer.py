@@ -14,6 +14,7 @@ from app.schemas.discovery import Seed
 from app.schemas.recommendation import CHARACTERISTICS, Characteristic, SongAnalysis
 from app.schemas.song import SongMetadata
 from app.services.ai_service import AIProvider
+from app.services.text import untrusted
 
 MAX_VALUE_LENGTH = 80
 MAX_FACTS = 40
@@ -54,7 +55,7 @@ def build_facts(song: SongMetadata, seed: Seed) -> list[tuple[str, str]]:
         for tag in platform_tags[:10]:
             if isinstance(tag, str) and tag.strip():
                 facts.append(f"{song.platform.value} tag: {tag.strip()[:60]}")
-    return [(f"f{i}", text) for i, text in enumerate(facts[:MAX_FACTS], start=1)]
+    return [(f"f{i}", untrusted(text, 300)) for i, text in enumerate(facts[:MAX_FACTS], start=1)]
 
 
 def analysis_schema() -> dict[str, Any]:

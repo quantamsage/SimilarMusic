@@ -34,6 +34,7 @@ class RecommendationRequest(Base):
         back_populates="request",
         order_by="Recommendation.rank",
         cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
 
@@ -51,4 +52,4 @@ class Recommendation(Base):
     details: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     request: Mapped[RecommendationRequest] = relationship(back_populates="recommendations")
-    song: Mapped[Song] = relationship()
+    song: Mapped[Song] = relationship(lazy="selectin")

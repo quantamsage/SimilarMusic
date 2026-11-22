@@ -47,7 +47,7 @@ class ClaudeProvider:
     ) -> None:
         self.model = model
         self._effort = effort
-        self._client = client or anthropic.AsyncAnthropic(api_key=api_key, timeout=timeout_seconds, max_retries=2)
+        self._client = client or anthropic.AsyncAnthropic(api_key=api_key, timeout=timeout_seconds, max_retries=1)
 
     async def generate_json(self, *, system: str, prompt: str, schema: dict[str, Any], max_tokens: int = 16000) -> dict:
         request: dict[str, Any] = {

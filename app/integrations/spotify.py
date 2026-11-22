@@ -6,6 +6,7 @@ at most 10 results per request; 5 are requested). Audio features and
 recommendations are not used: those endpoints are unavailable to new apps.
 """
 
+import asyncio
 import base64
 import time
 
@@ -93,6 +94,8 @@ class SpotifyClient:
         self._market = market
         self._token: str | None = None
         self._token_expires_at = 0.0
+        # Concurrent lookups share one token request.
+        self._token_lock = asyncio.Lock()
 
     async def get_song(self, track_id: str) -> SongMetadata:
         response = await self._get(f"{API_BASE}/tracks/{track_id}", {"market": self._market})
@@ -161,7 +164,15 @@ class SpotifyClient:
             )
         if not force_refresh and self._token and time.monotonic() < self._token_expires_at:
             return self._token
+        stale = self._token
+        async with self._token_lock:
+            # Another request may have fetched a new token while this one waited.
+            if self._token and self._token != stale and time.monotonic() < self._token_expires_at:
+                return self._token
+            return await self._fetch_token()
 
+    async def _fetch_token(self) -> str:
+        assert self._client_id and self._client_secret
         request = self._http.build_request(
             "POST",
             TOKEN_URL,

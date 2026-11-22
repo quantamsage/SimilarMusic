@@ -3,7 +3,8 @@
 // JavaScript the same forms post to /recommend and work the same way.
 
 const API = "/api/recommendations";
-/** Give up waiting after this long (the server's AI timeout is shorter). */
+/** Give up waiting after this long. The server allows each AI call at most
+ * two attempts of AI_TIMEOUT_SECONDS (at most 130 s), plus discovery. */
 const TIMEOUT_MS = 5 * 60 * 1000;
 const SLOW_AFTER_S = 70;
 

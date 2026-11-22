@@ -36,7 +36,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     ai_model: str = "claude-opus-5-5"
     ai_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
-    ai_timeout_seconds: float = Field(default=120.0, gt=0, le=600)
+    # One retry is allowed, so two attempts plus discovery must stay under
+    # the browser's 5-minute wait (static/js/app.js).
+    ai_timeout_seconds: float = Field(default=120.0, gt=0, le=130)
 
     # Recommendations.
     recommendation_count: int = Field(default=10, ge=1, le=25)

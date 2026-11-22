@@ -43,7 +43,7 @@ def test_environment_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.parametrize(
     ("name", "value"),
-    [("SPOTIFY_MARKET", "usa"), ("HTTP_TIMEOUT_SECONDS", "0"), ("HTTP_TIMEOUT_SECONDS", "120")],
+    [("SPOTIFY_MARKET", "usa"), ("HTTP_TIMEOUT_SECONDS", "0"), ("HTTP_TIMEOUT_SECONDS", "120"), ("AI_TIMEOUT_SECONDS", "131"), ("AI_EFFORT", "extreme")],
 )
 def test_invalid_values_are_rejected(monkeypatch: pytest.MonkeyPatch, name: str, value: str) -> None:
     monkeypatch.setenv(name, value)

@@ -41,6 +41,20 @@ from app.services.song_analyzer import SongAnalyzer
 from app.services.text import normalize, primary_artist
 
 
+async def _all_or_nothing(*coroutines):
+    """Runs coroutines concurrently; if one fails, the others are cancelled
+    (so no AI call keeps running for a request that has already failed) and
+    the first error is raised."""
+    tasks = [asyncio.ensure_future(c) for c in coroutines]
+    try:
+        return await asyncio.gather(*tasks)
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
+
+
 class RecommendationService:
     def __init__(
         self,
@@ -82,7 +96,7 @@ class RecommendationService:
         try:
             discovery = await self._discovery.discover(song)
             engine = RecommendationEngine(self._ai)
-            analysis, evaluations = await asyncio.gather(
+            analysis, evaluations = await _all_or_nothing(
                 SongAnalyzer(self._ai).analyze(song, discovery.seed),
                 engine.evaluate(song, discovery),
             )

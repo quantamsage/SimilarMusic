@@ -32,6 +32,7 @@ from app.schemas.discovery import Candidate, DiscoveryResult, Tag
 from app.schemas.recommendation import RATED_DIMENSIONS, ScoreBreakdown, ScoringMethod
 from app.schemas.song import SongMetadata
 from app.services.ai_service import AIProvider
+from app.services.text import untrusted
 
 WEIGHTS = {"listening": 0.4, "tags": 0.3, "ai": 0.3}
 ARTIST_MATCH_FACTOR = 0.8
@@ -110,7 +111,7 @@ def evaluation_schema() -> dict[str, Any]:
 
 
 def _tag_list(tags: list[Tag]) -> str:
-    return ", ".join(f"{t.name} ({t.weight})" for t in tags) or "none"
+    return ", ".join(f"{untrusted(t.name, 60)} ({t.weight})" for t in tags) or "none"
 
 
 def _found_via(candidate: Candidate) -> str:
@@ -121,17 +122,17 @@ def _found_via(candidate: Candidate) -> str:
         parts.append(f"its artist is similar to the original's (similarity {candidate.artist_match:.2f})")
     tags = [s.split(":", 1)[1] for s in candidate.sources if s.startswith("tag:")]
     if tags:
-        parts.append("it is a top track for the tag " + ", ".join(f'"{t}"' for t in tags))
+        parts.append("it is a top track for the tag " + ", ".join(f'"{untrusted(t, 60)}"' for t in tags))
     return "; ".join(parts) or "unknown"
 
 
 def build_prompt(song: SongMetadata, seed_tags: list[Tag], candidates: list[Candidate]) -> str:
     candidate_lines = "\n".join(
-        f'<candidate id="c{i}">\nartist: {c.artist}\ntitle: {c.title}\ntags: {_tag_list(c.tags)}\nfound because: {_found_via(c)}\n</candidate>'
+        f'<candidate id="c{i}">\nartist: {untrusted(c.artist)}\ntitle: {untrusted(c.title)}\ntags: {_tag_list(c.tags)}\nfound because: {_found_via(c)}\n</candidate>'
         for i, c in enumerate(candidates, start=1)
     )
     return (
-        f"<original>\nartist: {song.artist}\ntitle: {song.title}\ntags: {_tag_list(seed_tags)}\n</original>\n\n"
+        f"<original>\nartist: {untrusted(song.artist)}\ntitle: {untrusted(song.title)}\ntags: {_tag_list(seed_tags)}\n</original>\n\n"
         f"<candidates>\n{candidate_lines}\n</candidates>\n\n"
         f"Evaluate all {len(candidates)} candidates."
     )

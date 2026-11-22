@@ -59,3 +59,15 @@ def song_key(artist: str, title: str) -> tuple[str, str]:
 
 def is_filler(artist: str, title: str) -> bool:
     return bool(FILLER.search(artist) or FILLER.search(title))
+
+
+CONTROL = re.compile(r"[\x00-\x1f\x7f]+")
+
+
+def untrusted(text: str, limit: int = 200) -> str:
+    """Third-party text (titles, artists, tags) made safe to place inside the
+    AI prompt's data blocks: on one line, without angle brackets (so it can't
+    close a <candidate> or <facts> block or forge "field:" lines), and
+    length-limited. The text is only shown to the AI, never to users."""
+    text = CONTROL.sub(" ", text).replace("<", "‹").replace(">", "›")
+    return SPACES.sub(" ", text).strip()[:limit]

@@ -4,6 +4,24 @@ A web app for discovering music: paste a link to a song you like and get similar
 
 > **Status:** complete (phases 1–6). Paste a link on the home page, wait while the song is identified, discovered and analysed, and browse the ranked recommendations with artwork, scores and explanations; any recommendation can start a new search.
 
+## Screenshots
+
+Paste a Spotify or YouTube song link:
+
+![Home page with the song link form](docs/screenshots/home.png)
+
+The results: the song's characteristics (with the evidence behind them), then similar songs ranked by score, each with the reason it was recommended, a link to listen and **Discover more like this**:
+
+![Results page with ranked recommendations](docs/screenshots/results.png)
+
+Clear errors that say what to do next, and a layout that works on phones:
+
+![An unsupported album link explained](docs/screenshots/error.png)
+
+<img src="docs/screenshots/results-mobile.png" alt="Results page on a phone" width="320">
+
+*Taken with the test suite's sample Last.fm data and a stand-in for the AI, so no API keys were used. That's why the explanations here come from listening data and the artwork shows placeholders. With real credentials, the explanations are written by the AI and the artwork comes from Spotify.*
+
 ## Requirements
 
 - Python 3.10 or newer (`python --version`)
